@@ -101,7 +101,7 @@ def add_dns(dns_value):
 # 写入日志
 def write_to_file(dns_value, dns_output):
     time_now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-    write = open('/aliyun_ddns.log', 'a')
+    write = open('./aliyun_ddns.log', 'a')
     write.write(time_now + ' ' + str(dns_value) + ' ' + dns_output + '\n')
     write.close()
 
