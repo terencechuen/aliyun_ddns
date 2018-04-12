@@ -1,124 +1,126 @@
 # -*- coding: UTF-8 -*-
 
 import json
-import os
-import re
 import sys
 from datetime import datetime
 
 import requests
-from aliyunsdkalidns.request.v20150109 import UpdateDomainRecordRequest, DescribeDomainRecordsRequest, \
-    DescribeDomainRecordInfoRequest
+from aliyunsdkalidns.request.v20150109 import DescribeDomainRecordsRequest, UpdateDomainRecordRequest, \
+    AddDomainRecordRequest
 from aliyunsdkcore import client
 
-# 填写账号信息
-access_key_id = ""
-access_Key_secret = ""
+# 尝试打开配置文件
+try:
+    config_r = open('./config.json', 'r')
+except Exception as e:
+    print('An error occurred, open config file fail! Error MSG: ')
+    print(e)
+    print('Script exit!')
+    sys.exit(0)
+else:
+    config_content = config_r.read()
 
-# 请填写你的账号ID
-account_id = ""
+# 尝试格式化配置文件
+try:
+    config_json = json.loads(config_content)
+except Exception as e:
+    print('Load json fail, please recheck config file! Error MSG: ')
+    print(e)
+    print('Script exit!')
+    sys.exit(0)
+else:
+    pass
 
-# 如果选择yes，则运行程序后仅现实域名信息，并不会更新记录，用于获取解析记录ID。
-# 如果选择NO，则运行程序后不显示域名信息，仅更新记录
-i_dont_know_record_id = 'no'
+# 定义变量
+rc_access_key_id = config_json['access_key_id']
+rc_access_Key_secret = config_json['access_Key_secret']
+rc_domain = config_json['domain']
+rc_sub_domain = config_json['sub_domain']
+rc_ttl = config_json['ttl']
 
-# 请填写你的一级域名
-rc_domain = ''
 
-# 请填写你的解析记录
-rc_rr = ''
-
-# 请填写你的记录类型，DDNS请填写A，表示A记录
-rc_type = 'A'
-
-# 请填写解析记录ID
-rc_record_id = ''
-
-# 请填写解析有效生存时间TTL，单位：秒
-rc_ttl = '30'
-
-# 请填写返还内容格式，json，xml
-rc_format = 'json'
-
-def my_ip_method_1():
-    get_ip_method = os.popen('curl -s ip.cn')
-    get_ip_responses = get_ip_method.readlines()[0]
-    get_ip_pattern = re.compile(r'\d+\.\d+\.\d+\.\d+')
-    get_ip_value = get_ip_pattern.findall(get_ip_responses)[0]
+# 通过淘宝API获取本地公网IP
+def my_ip():
+    get_ip_method = requests.get('http://ip.taobao.com/service/getIpInfo.php?ip=myip').content
+    get_ip_value = json.loads(get_ip_method)
+    get_ip_value = get_ip_value['data']['ip']
     return get_ip_value
 
 
-def my_ip_method_2():
-    get_ip_method = os.popen('curl -s http://ip-api.com/json')
-    get_ip_responses = get_ip_method.readlines()[0]
-    get_ip_responses = eval(str(get_ip_responses))
-    get_ip_value = get_ip_responses['query']
-    return get_ip_value
-
-
-def my_ip_method_3():
-    get_ip_method = requests.get('http://ifconfig.co/json').content
-    get_ip_value = eval(get_ip_method)
-    get_ip_value = get_ip_value['ip']
-    return get_ip_value
-
-
-def check_records(dns_domain):
-    clt = client.AcsClient(access_key_id, access_Key_secret, 'cn-hangzhou')
+# 获取域名信息
+# 输出格式：[RecordId, Value]
+def get_record_info():
+    clt = client.AcsClient(rc_access_key_id, rc_access_Key_secret, 'cn-hangzhou')
     request = DescribeDomainRecordsRequest.DescribeDomainRecordsRequest()
-    request.set_DomainName(dns_domain)
-    request.set_accept_format(rc_format)
-    result = clt.do_action_with_exception(request)
-    result = result.decode()
-    result_dict = json.JSONDecoder().decode(result)
-    result_list = result_dict['DomainRecords']['Record']
-    for j in result_list:
-        print('Subdomain：' + j['RR'].encode() + ' ' + '| RecordId：' + j['RecordId'].encode())
-    return
+    request.set_DomainName(rc_domain)
+    request.set_accept_format('json')
+    try:
+        result = clt.do_action_with_exception(request)
+    except Exception as f:
+        return 'An error occurred! Error MSG: ' + str(f)
+    else:
+        result = result.decode()
+        result_dict = json.JSONDecoder().decode(result)
+        result_list = result_dict['DomainRecords']['Record']
+        result = []
+        for i in result_list:
+            if rc_sub_domain == i['RR']:
+                result.append(i['RecordId'])
+                result.append(i['Value'])
+                break
+        return result
 
 
-def old_ip():
-    clt = client.AcsClient(access_key_id, access_Key_secret, 'cn-hangzhou')
-    request = DescribeDomainRecordInfoRequest.DescribeDomainRecordInfoRequest()
-    request.set_RecordId(rc_record_id)
-    request.set_accept_format(rc_format)
-    result = clt.do_action_with_exception(request).decode()
-    result = json.JSONDecoder().decode(result)
-    result = result['Value']
-    return result
-
-
-def update_dns(dns_rr, dns_type, dns_value, dns_record_id, dns_ttl, dns_format):
-    clt = client.AcsClient(access_key_id, access_Key_secret, 'cn-hangzhou')
+# 更新子域名信息
+def update_dns(dns_value, dns_record_id):
+    clt = client.AcsClient(rc_access_key_id, rc_access_Key_secret, 'cn-hangzhou')
     request = UpdateDomainRecordRequest.UpdateDomainRecordRequest()
-    request.set_RR(dns_rr)
-    request.set_Type(dns_type)
+    request.set_RR(rc_sub_domain)
+    request.set_Type('A')
     request.set_Value(dns_value)
     request.set_RecordId(dns_record_id)
-    request.set_TTL(dns_ttl)
-    request.set_accept_format(dns_format)
+    request.set_TTL(rc_ttl)
+    request.set_accept_format('json')
     result = clt.do_action_with_exception(request)
     return result
 
 
-def write_to_file():
+# 新增子域名解析
+def add_dns(dns_value):
+    clt = client.AcsClient(rc_access_key_id, rc_access_Key_secret, 'cn-hangzhou')
+    request = AddDomainRecordRequest.AddDomainRecordRequest()
+    request.set_DomainName(rc_domain)
+    request.set_RR(rc_sub_domain)
+    request.set_Type('A')
+    request.set_Value(dns_value)
+    request.set_TTL(rc_ttl)
+    result = clt.do_action_with_exception(request)
+    return result
+
+
+# 写入日志
+def write_to_file(dns_value, dns_output):
     time_now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-    current_script_path = sys.path[1]
-    log_file = current_script_path + '/' + 'aliyun_ddns_log.txt'
+    log_file = sys.path[1] + '/aliyun_ddns.log'
     write = open(log_file, 'a')
-    write.write(time_now + ' ' + str(rc_value) + '\n')
+    write.write(time_now + ' ' + str(dns_value) + ' ' + dns_output + '\n')
     write.close()
-    return
 
 
-if i_dont_know_record_id == 'yes':
-    check_records(rc_domain)
-elif i_dont_know_record_id == 'no':
-    rc_value = my_ip_method_3()
-    rc_value_old = old_ip()
-    if rc_value_old == rc_value:
-        print('The specified value of parameter Value is the same as old')
+# 运行
+if __name__ == '__main__':
+    result_list = get_record_info()
+    current_ip = my_ip()
+    if len(result_list) == 0:
+        aliyun_output = add_dns(current_ip).decode()
+        write_to_file(current_ip, aliyun_output)
+        print(aliyun_output)
     else:
-        print(update_dns(rc_rr, rc_type, rc_value, rc_record_id, rc_ttl, rc_format))
-        write_to_file()
-
+        result_record_id = result_list[0]
+        old_ip = result_list[1]
+        if old_ip == current_ip:
+            print('The specified value of parameter Value is the same as old')
+        else:
+            aliyun_output = update_dns(current_ip, result_record_id).decode()
+            write_to_file(current_ip, aliyun_output)
+            print(aliyun_output)
