@@ -41,7 +41,7 @@ rc_ttl = config_json['ttl']
 
 # 通过淘宝API获取本地公网IP
 def my_ip():
-    get_ip_method = requests.get('http://ip.taobao.com/service/getIpInfo.php?ip=myip').content
+    get_ip_method = requests.get('http://ip.taobao.com/service/getIpInfo.php?ip=myip').content.decode()
     get_ip_value = json.loads(get_ip_method)
     get_ip_value = get_ip_value['data']['ip']
     return get_ip_value
