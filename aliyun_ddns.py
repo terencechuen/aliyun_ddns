@@ -11,7 +11,7 @@ from aliyunsdkcore import client
 
 # 尝试打开配置文件
 try:
-    config_r = open('./config.json', 'r')
+    config_r = open(sys.path[0] + '/config.json', 'r')
 except Exception as e:
     print('An error occurred, open config file fail! Error MSG: ')
     print(e)
