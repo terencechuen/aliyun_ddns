@@ -31,13 +31,6 @@ except Exception as e:
 else:
     pass
 
-# 定义变量
-rc_access_key_id = config_json['access_key_id']
-rc_access_Key_secret = config_json['access_Key_secret']
-rc_domain = config_json['domain']
-rc_sub_domain = config_json['sub_domain']
-rc_ttl = config_json['ttl']
-
 
 # 通过淘宝API获取本地公网IP
 def my_ip():
@@ -49,13 +42,12 @@ def my_ip():
 
 # 获取域名信息
 # 输出格式：[RecordId, Value]
-def get_record_info():
-    clt = client.AcsClient(rc_access_key_id, rc_access_Key_secret, 'cn-hangzhou')
+def get_record_info(ali_ctl, domain, sub_domain):
     request = DescribeDomainRecordsRequest.DescribeDomainRecordsRequest()
-    request.set_DomainName(rc_domain)
+    request.set_DomainName(domain)
     request.set_accept_format('json')
     try:
-        result = clt.do_action_with_exception(request)
+        result = ali_ctl.do_action_with_exception(request)
     except Exception as f:
         return 'An error occurred! Error MSG: ' + str(f)
     else:
@@ -64,7 +56,7 @@ def get_record_info():
         result_list = result_dict['DomainRecords']['Record']
         result = []
         for i in result_list:
-            if rc_sub_domain == i['RR']:
+            if sub_domain == i['RR']:
                 result.append(i['RecordId'])
                 result.append(i['Value'])
                 break
@@ -72,29 +64,27 @@ def get_record_info():
 
 
 # 更新子域名信息
-def update_dns(dns_value, dns_record_id):
-    clt = client.AcsClient(rc_access_key_id, rc_access_Key_secret, 'cn-hangzhou')
+def update_dns(ali_ctl, sub_domain, dns_value, ttl, dns_record_id):
     request = UpdateDomainRecordRequest.UpdateDomainRecordRequest()
-    request.set_RR(rc_sub_domain)
+    request.set_RR(sub_domain)
     request.set_Type('A')
     request.set_Value(dns_value)
     request.set_RecordId(dns_record_id)
-    request.set_TTL(rc_ttl)
+    request.set_TTL(ttl)
     request.set_accept_format('json')
-    result = clt.do_action_with_exception(request)
+    result = ali_ctl.do_action_with_exception(request)
     return result
 
 
 # 新增子域名解析
-def add_dns(dns_value):
-    clt = client.AcsClient(rc_access_key_id, rc_access_Key_secret, 'cn-hangzhou')
+def add_dns(ali_ctl, dns_value, domain, sub_domain, ttl):
     request = AddDomainRecordRequest.AddDomainRecordRequest()
-    request.set_DomainName(rc_domain)
-    request.set_RR(rc_sub_domain)
+    request.set_DomainName(domain)
+    request.set_RR(sub_domain)
     request.set_Type('A')
     request.set_Value(dns_value)
-    request.set_TTL(rc_ttl)
-    result = clt.do_action_with_exception(request)
+    request.set_TTL(ttl)
+    result = ali_ctl.do_action_with_exception(request)
     return result
 
 
@@ -106,20 +96,37 @@ def write_to_file(dns_value, dns_output):
     write.close()
 
 
-# 运行
-if __name__ == '__main__':
-    result_list = get_record_info()
-    current_ip = my_ip()
-    if len(result_list) == 0:
-        aliyun_output = add_dns(current_ip).decode()
-        write_to_file(current_ip, aliyun_output)
-        print(aliyun_output)
-    else:
-        result_record_id = result_list[0]
-        old_ip = result_list[1]
-        if old_ip == current_ip:
-            print('The specified value of parameter Value is the same as old')
-        else:
-            aliyun_output = update_dns(current_ip, result_record_id).decode()
+# 定义变量
+
+current_ip = my_ip()
+
+
+def run_main():
+    for k, v in config_json.items():
+        rc_access_key_id = v['access_key_id']
+        rc_access_key_secret = v['access_Key_secret']
+        rc_domain = v['domain']
+        rc_sub_domain = v['sub_domain']
+        rc_ttl = v['ttl']
+
+        clt = client.AcsClient(rc_access_key_id, rc_access_key_secret, 'cn-hangzhou')
+
+        result_list = get_record_info(clt, rc_domain, rc_sub_domain)
+        if len(result_list) == 0:
+            aliyun_output = add_dns(clt, current_ip, rc_domain, rc_sub_domain, rc_ttl).decode()
             write_to_file(current_ip, aliyun_output)
             print(aliyun_output)
+        else:
+            result_record_id = result_list[0]
+            old_ip = result_list[1]
+            if old_ip == current_ip:
+                print('The specified value of parameter Value is the same as old')
+            else:
+                aliyun_output = update_dns(clt, rc_sub_domain, current_ip, rc_ttl, result_record_id).decode()
+                write_to_file(current_ip, aliyun_output)
+                print(aliyun_output)
+
+
+# 运行
+if __name__ == '__main__':
+    run_main()
