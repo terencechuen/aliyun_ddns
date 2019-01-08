@@ -101,9 +101,9 @@ def write_to_file(dns_value, dns_output):
 # 获取IP地址，支持v4与v6
 def my_ip(i_ip_ver):
     if i_ip_ver == 4:
-        get_ip_value = requests.get('https://ipv4.ngx.hk').content.decode().strip('\n')
+        get_ip_value = requests.get('https://ipv4.ngx.hk', timeout=30).content.decode().strip('\n')
     else:
-        get_ip_value = requests.get('https://ipv6.ngx.hk').content.decode().strip('\n')
+        get_ip_value = requests.get('https://ipv6.ngx.hk', timeout=30).content.decode().strip('\n')
     return get_ip_value
 
 
@@ -116,7 +116,6 @@ def run_main():
         rc_ttl = v['ttl']
         ip_ver = v['ip_ver']
         current_ip = my_ip(ip_ver)
-
 
         clt = client.AcsClient(rc_access_key_id, rc_access_key_secret, 'cn-hangzhou')
 
