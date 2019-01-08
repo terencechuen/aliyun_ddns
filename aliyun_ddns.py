@@ -101,9 +101,9 @@ def write_to_file(dns_value, dns_output):
 # 获取IP地址，支持v4与v6
 def my_ip(i_ip_ver):
     if i_ip_ver == 4:
-        get_ip_value = requests.get('https://ipv4.ngx.hk').content.decode()
+        get_ip_value = requests.get('https://ipv4.ngx.hk').content.decode().strip('\n')
     else:
-        get_ip_value = requests.get('https://ipv6.ngx.hk').content.decode()
+        get_ip_value = requests.get('https://ipv6.ngx.hk').content.decode().strip('\n')
     return get_ip_value
 
 
@@ -117,13 +117,13 @@ def run_main():
         ip_ver = v['ip_ver']
         current_ip = my_ip(ip_ver)
 
+
         clt = client.AcsClient(rc_access_key_id, rc_access_key_secret, 'cn-hangzhou')
 
         result_list = get_record_info(clt, rc_domain, rc_sub_domain)
         if len(result_list) == 0:
             aliyun_output = add_dns(clt, current_ip, rc_domain, rc_sub_domain, rc_ttl, ip_ver).decode()
             write_to_file(current_ip, aliyun_output)
-            print(aliyun_output)
         else:
             result_record_id = result_list[0]
             old_ip = result_list[1]
@@ -132,7 +132,6 @@ def run_main():
             else:
                 aliyun_output = update_dns(clt, rc_sub_domain, current_ip, rc_ttl, result_record_id, ip_ver).decode()
                 write_to_file(current_ip, aliyun_output)
-                print(aliyun_output)
 
 
 # 运行
