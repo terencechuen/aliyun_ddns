@@ -67,7 +67,7 @@ def update_dns(ali_ctl, sub_domain, dns_value, ttl, dns_record_id, ip_ver):
     if ip_ver == 4:
         request.set_Type('A')
     else:
-        request.set_Type('AAA')
+        request.set_Type('AAAA')
 
     result = ali_ctl.do_action_with_exception(request)
     return result
@@ -84,7 +84,7 @@ def add_dns(ali_ctl, dns_value, domain, sub_domain, ttl, ip_ver):
     if ip_ver == 4:
         request.set_Type('A')
     else:
-        request.set_Type('AAA')
+        request.set_Type('AAAA')
 
     result = ali_ctl.do_action_with_exception(request)
     return result
