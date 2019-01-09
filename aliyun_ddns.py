@@ -16,7 +16,7 @@ except Exception as e:
     print('An error occurred, open config file fail! Error MSG: ')
     print(e)
     print('Script exit!')
-    sys.exit(0)
+    sys.exit(1)
 else:
     config_content = config_r.read()
 
@@ -27,7 +27,7 @@ except Exception as e:
     print('Load json fail, please recheck config file! Error MSG: ')
     print(e)
     print('Script exit!')
-    sys.exit(0)
+    sys.exit(1)
 else:
     pass
 
@@ -108,7 +108,7 @@ def my_ip(i_ip_ver):
 
 
 def run_main():
-    for k, v in config_json.items():
+    for v in config_json.values():
         rc_access_key_id = v['access_key_id']
         rc_access_key_secret = v['access_Key_secret']
         rc_domain = v['domain']
